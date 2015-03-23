@@ -1,0 +1,143 @@
+package wordcount;
+
+import java.io.*;
+import java.util.*;
+
+/*
+ *  Type Pre-Requisites.
+ Author: Anbalagan Mookkaiah
+Requirements:
+1. Ignore Caps while counting. i.e Who and who are same for counting purposes
+2. For reporting, purposes change every word to lower case
+3. For reporting, remove hyphen. Hi-lite should be hilite 
+4. For reporting, provide a tab between key and value
+5. For reporting, sort by keys (in alphabetical order)
+Assumption - all characters are ASCII characters
+
+/*
+ * Using Hadoop, I could configure Distributed File System block size and the number of map tasks / node based on available node in the cluster.
+ * Generally the right level parallelism seems to be around 10-100 maps per-node.
+ * For example, 10TB of input data with blocksize of 128MB, ends up with 82,000 maps.
+ * Number of reduce tasks can be configured such as [0.95 * Number of node]. 
+ * Keeping slightly less than the whole number makes few reduce tasks available for failure tasks.
+ * Linear Scalability:
+ * When more resources and loads are added, could should be able to handle with lineatly increased output.
+ * Mutable state protected with lock. Reduce lock duration.
+ * lock stripping / putIfAbsent / replace / ConcurrentHashMap.
+ * read write lock.
+ * 
+ * Atomic Variable / Imutable objects (final, private)..
+ * Better GC.
+ * ConcurrentHashMap / TreeMap
+ * Assumed 64 bit Solarice that allocated 1 MB stack / Thread.
+ * 
+ * The limitations are generally based on system resources -
+physical memory and CPU.
+
+The number of threads that can run within a JVM process is generally
+limited by the address space for that process. Each thread requires
+a thread stack. The more threads you have, the more process address
+space you use. The more address space you use for thread stacks, the
+less you have for the Java heap. There is one more tricky you have when you have less heap; 
+it triggers more GC occurance. This effects performance largely. So there's a bit of a balance 
+that needs to be achieved. Generally, if you have a lot of active threads you will probably want
+ a lot of heap space as well.
+ 
+ Handle Memoty leak..
+ number of threads = total virtual memory / (stack size*1024*1024)
+ -- cat /proc/sys/kernel/threads-max  - Shell script to find number of threads allowed.
+ */
+
+public class ThreadReader {
+
+public static void main(String[] args) {
+    File f = null;//folder
+    final BlockingQueue<File> queue = new ArrayBlockingQueue<File>(1000);
+    for(File kid : f.listFiles()){
+        queue.add(kid);
+    }
+
+    ExecutorService pool = Executors.newFixedThreadPool(5);
+
+    for(int i = 1; i <= 5; i++){
+        Runnable r = new Runnable(){
+        public void run() {
+            File workFile = null;
+            while((workFile = queue.poll()) != null){
+                //work on the file.
+            }
+
+        }
+    };
+
+        pool.execute(r);
+    }
+
+}
+
+
+public class Mapper
+{
+	
+	public void Map(String key,String value )
+	{
+		
+	}
+	}
+
+public class WordCount {
+	
+	public static void main(String[] args) throws FileNotFoundException 
+	{      
+	
+        private Integer THREAD_COUNT =  Integer.parseInt(args[0]);
+        WordCount obj = new WordCount();                        //creates an object
+        File[] directoryListing = obj.getInputFiles();          //gets the sorted input files
+        if (directoryListing != null) 
+        {                         //loops through input files
+            TreeMap map =  obj.getSortedWordCount(directoryListing); //gets sorted key, value pair
+        obj.writeOutputFile(map);
+        }
+    
+  
+	//Method below returns sorted file array from the right directory. 
+    public File[] getInputFiles (){
+        File dir = new File("wc_input"); //location of directory with input file(s)
+        File[] directoryListing = dir.listFiles(); //lists all the files
+        Arrays.sort (directoryListing); //sorts all the listed files by name within the directory
+        return directoryListing;
+    }
+    //Method below parses words, compares and count unique words,places key, value in a tree map, returns treemap
+    public TreeMap getSortedWordCount(File[] directoryListing ) throws FileNotFoundException {
+        TreeMap map = new TreeMap();                    //Assigns treemap
+        for (File child : directoryListing) {           //loops through all the files in the directory
+            Scanner in = new Scanner(new File(child.getPath()));
+            //scanner parses primitive types and strings using regular expressions. 
+            while (in.hasNext()) {                       //attempts to return next token
+                String word = in.next().toLowerCase();   //converts all the string to lower case (req 1, 2)
+                word = word.replaceAll("[^a-zA-Z]+",""); //replaces/removes any character other than letters
+                word = word.replace("-","");             //removes hyphen from words (req 3)
+                if(map.containsKey(word)) {              //checks if word is already counted
+                    int count = (int)map.get(word);      //Assigns words as an integer (for counting)
+                    map.put(word, count + 1);            //increaments value if already exists
+                } else 
+                    map.put(word, 1);                    //adds as a new word with value of 1 to the treemap.  
+            }
+        }
+       return map;
+    }
+    //Method below writes the key, value pair to the output file
+    public void writeOutputFile (TreeMap map)throws FileNotFoundException {
+        String OUTPUT_FILE = "wc_output/wc_result.txt"; //Folder location for output file
+        PrintWriter outWriter = new PrintWriter( new BufferedWriter(new OutputStreamWriter(new FileOutputStream(OUTPUT_FILE))));
+        for(Object key: map.keySet()){
+            System.out.println(key  +" \t "+ map.get(key));   //prints in screen key, value with a tab in between (req 4)   
+            outWriter.print(key + "\t" + map.get(key) + "\n"); //Prints sorted key, value to output file. TreeMap sorts automatically (req 5)
+        }            
+        outWriter.flush();
+    }
+}
+
+
+    
+
